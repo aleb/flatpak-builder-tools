@@ -39,28 +39,18 @@ parser.add_argument('--runtime',
 opts = parser.parse_args()
 
 
-def get_pypi_url(name: str, filename: str) -> str:
-    url = 'https://pypi.org/pypi/{}/json'.format(name)
-    print('Extracting download url for', name)
-    with urllib.request.urlopen(url) as response:
+def get_pypi_url(filename: str) -> str:
+    version = get_file_version(filename)
+    name = get_package_name(filename)
+    json_url = 'https://pypi.org/pypi/{}/json'.format(name)
+    print('Extracting', json_url)
+    with urllib.request.urlopen(json_url) as response:
         body = json.loads(response.read().decode('utf-8'))
-        for release in body['releases'].values():
-            for source in release:
-                if source['filename'] == filename:
-                    return source['url']
-        raise Exception('Failed to extract url from {}'.format(url))
-
-
-def get_tar_package_url_pypi(name: str, version: str) -> str:
-    url = 'https://pypi.org/pypi/{}/{}/json'.format(name, version)
-    with urllib.request.urlopen(url) as response:
-        body = json.loads(response.read().decode('utf-8'))
-        for ext in ['bz2', 'gz', 'xz', 'zip']:
-            for source in body['urls']:
-                if source['url'].endswith(ext):
-                    return source['url']
-        err = 'Failed to get {}-{} source from {}'.format(name, version, url)
-        raise Exception(err)
+    for release in body['releases'].values():
+        for source in release:
+            if source['filename'] == filename:
+               return source['url']
+    raise Exception('Failed to extract url from {}'.format(json_url))
 
 
 def get_package_name(filename: str) -> str:
@@ -141,10 +131,13 @@ if opts.requirements_file and os.path.exists(opts.requirements_file):
 elif opts.packages:
     packages = list(requirements.parse('\n'.join(opts.packages)))
     with tempfile.NamedTemporaryFile('w', delete=False, prefix='requirements.') as req_file:
-        req_file.write('\n'.join(opts.packages))
+        content = '\n'.join(opts.packages)
+        print('Creating requirements file {}:'.format(req_file.name))
+        print(content)
+        req_file.write(content)
         requirements_file = req_file.name
 else:
-    exit('Please specifiy either packages or requirements file argument')
+    exit('Please specify either packages or requirements file argument')
 
 with open(requirements_file, 'r') as req_file:
     use_hash = '--hash=' in req_file.read()
@@ -158,6 +151,7 @@ else:
 if opts.runtime:
     flatpak_cmd = [
         'flatpak',
+        '--user',
         '--devel',
         '--share=network',
         '--filesystem=/tmp',
@@ -178,19 +172,17 @@ elif opts.requirements_file:
     output_package = 'python{}-{}'.format(
         python_version, opts.requirements_file.replace('.txt', ''),
     )
-elif len(packages) == 1:
-    output_package = 'python{}-{}'.format(
-        python_version, packages[0].name,
-    )
 else:
-    output_package = 'python{}-modules'.format(python_version)
+    output_package = 'python{}-{}'.format(
+        python_version, packages[-1].name,
+    )
 output_filename = output_package + '.json'
 
 modules = []
 vcs_modules = []
 sources = {}
 
-tempdir_prefix = 'pip-generator-{}'.format(output_filename.replace('.json', ''))
+tempdir_prefix = 'pip-generator-download-{}'.format(output_filename.replace('.json', ''))
 with tempfile.TemporaryDirectory(prefix=tempdir_prefix) as tempdir:
     pip_download = flatpak_cmd + [
         'download',
@@ -219,18 +211,6 @@ with tempfile.TemporaryDirectory(prefix=tempdir_prefix) as tempdir:
             pass
 
     fprint('Downloading arch independent packages')
-    for filename in os.listdir(tempdir):
-        if not filename.endswith(('bz2', 'gz', 'xz', 'zip')):
-            version = get_file_version(filename)
-            name = get_package_name(filename)
-            url = get_tar_package_url_pypi(name, version)
-            print('Deleting', filename)
-            try:
-                os.remove(os.path.join(tempdir, filename))
-            except FileNotFoundError:
-                pass
-            print('Downloading {}'.format(url))
-            download_tar_pypi(url, tempdir)
 
     files = {get_package_name(f): [] for f in os.listdir(tempdir)}
 
@@ -279,7 +259,7 @@ with tempfile.TemporaryDirectory(prefix=tempdir_prefix) as tempdir:
             ])
             is_vcs = True
         else:
-            url = get_pypi_url(name, filename)
+            url = get_pypi_url(filename)
             source = OrderedDict([
                 ('type', 'file'),
                 ('url', url),
@@ -338,6 +318,10 @@ for package in packages:
 
         except subprocess.CalledProcessError:
             print('Failed to download {}'.format(package.name))
+
+    # Sort the dependencies for a stable output.
+    dependencies = sorted(dependencies)
+    print('Dependencies: {}'.format(dependencies))
 
     is_vcs = True if package.vcs else False
     package_sources = []
