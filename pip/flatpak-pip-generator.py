@@ -528,7 +528,7 @@ elif opts.packages:
         req_file.write(filtered_packages_str)
         requirements_file_output = req_file.name
 elif not len(sys.argv) > 1:
-    sys.exit("Please specifiy either packages or requirements file argument")
+    sys.exit("Please specify either packages or requirements file argument")
 else:
     sys.exit("This option can only be used with requirements file")
 
