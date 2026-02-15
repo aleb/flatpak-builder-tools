@@ -796,6 +796,10 @@ for package in packages:
         except subprocess.CalledProcessError:
             print(f"Failed to download {package.name}")
 
+    # Sort the dependencies for a stable output.
+    dependencies = sorted(dependencies)
+    print("Dependencies: {}".format(dependencies))
+
     is_vcs = bool(package.vcs)
     package_sources = []
     for dependency in dependencies:
