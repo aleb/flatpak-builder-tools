@@ -635,23 +635,6 @@ with tempfile.TemporaryDirectory(prefix=tempdir_prefix) as tempdir:
         with suppress(FileNotFoundError):
             os.remove(requirements_file_output)
 
-    fprint("Downloading arch independent packages")
-    for filename in os.listdir(tempdir):
-        if not filename.endswith(("bz2", "any.whl", "gz", "xz", "zip")):
-            version = get_file_version(filename)
-            name = get_package_name(filename)
-            try:
-                url = get_tar_package_url_pypi(name, version)
-                print(f"Downloading {url}")
-                download_tar_pypi(url, tempdir)
-            except Exception as err:
-                # Can happen if only an arch dependent wheel is
-                # available like for wasmtime-27.0.2
-                unresolved_dependencies_errors.append(err)
-            print("Deleting", filename)
-            with suppress(FileNotFoundError):
-                os.remove(os.path.join(tempdir, filename))
-
     files: dict[str, list[str]] = {get_package_name(f): [] for f in os.listdir(tempdir)}
 
     for filename in os.listdir(tempdir):
