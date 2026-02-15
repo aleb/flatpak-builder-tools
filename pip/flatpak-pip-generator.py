@@ -525,6 +525,8 @@ elif opts.packages:
     with tempfile.NamedTemporaryFile(
         "w", delete=False, prefix="requirements."
     ) as req_file:
+        print("Creating requirements file {}:".format(req_file.name))
+        print(filtered_packages_str)
         req_file.write(filtered_packages_str)
         requirements_file_output = req_file.name
 elif not len(sys.argv) > 1:
