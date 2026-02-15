@@ -189,15 +189,28 @@ def get_poetry_deps(pyproject_data: dict[str, Any]) -> list[str]:
 
 
 def get_pypi_url(name: str, filename: str) -> str:
-    url = f"https://pypi.org/pypi/{name}/json"
+    json_url = f"https://pypi.org/pypi/{name}/json"
     print("Extracting download url for", name)
-    with urllib.request.urlopen(url) as response:  # noqa: S310
+    with urllib.request.urlopen(json_url) as response:  # noqa: S310
         body = json.loads(response.read().decode("utf-8"))
-        for release in body["releases"].values():
+    for release in body["releases"].values():
+        for source in release:
+            if source["filename"] == filename:
+                return str(source["url"])
+    raise Exception(f"Failed to extract url from {json_url}")
+
+
+def get_pypi_url(filename: str) -> str:
+    name = get_package_name(filename)
+    json_url = 'https://pypi.org/pypi/{}/json'.format(name)
+    print('Extracting', json_url)
+    with urllib.request.urlopen(json_url) as response:
+         body = json.loads(response.read().decode('utf-8'))
+        for release in body['releases'].values():
             for source in release:
-                if source["filename"] == filename:
-                    return str(source["url"])
-        raise Exception(f"Failed to extract url from {url}")
+                if source['filename'] == filename:
+                return source['url']
+        raise Exception('Failed to extract url from {}'.format(json_url))
 
 
 def get_tar_package_url_pypi(name: str, version: str) -> str:
