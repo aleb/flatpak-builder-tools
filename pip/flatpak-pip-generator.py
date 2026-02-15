@@ -588,10 +588,8 @@ if not output_package:
             python_version,
             os.path.basename(opts.requirements_file).replace(".txt", ""),
         )
-    elif len(packages) == 1:
-        output_package = f"python{python_version}-{packages[0].name}"
     else:
-        output_package = f"python{python_version}-modules"
+        output_package = f"python{python_version}-{packages[-1].name}"
 
 output_filename = os.path.join(output_path, output_package)
 suffix = ".yaml" if opts.yaml else ".json"
