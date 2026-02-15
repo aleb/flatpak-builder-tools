@@ -604,7 +604,7 @@ sources = {}
 
 unresolved_dependencies_errors = []
 
-tempdir_prefix = f"pip-generator-{output_package}"
+tempdir_prefix = f"pip-generator-download-{output_package}"
 with tempfile.TemporaryDirectory(prefix=tempdir_prefix) as tempdir:
     pip_download = [
         *flatpak_cmd,
